@@ -55,7 +55,6 @@ int play(board* b, int r, tree* game_tree)
 		print_board(b);
 
 		// Generate game tree
-		generate_permutations(&game_tree->root, game_tree->root->value, 0, 0);
 		struct list_node* root = game_tree->root;
 
 		// Store player input, best-scoring move, and best column
@@ -63,15 +62,29 @@ int play(board* b, int r, tree* game_tree)
 
 		// Player 1 is AI
 		if (player == 1) {
+			/*printf("Input move: ");
+			if (scanf("%d", &input)){}
+			best_column = input;*/
+
+			generate_permutations(&game_tree->root, game_tree->root->value, 0, 0);
 			root -> value -> best_score = -999;
 			max_decision(&root);
 			best = root -> value -> best_score;
 			best_column = root -> value -> move;
 			printf("Best move for player %d: Score %d Column %d\n", player, best, best_column);
+
 		} else {
 			printf("Input move: ");
 			if (scanf("%d", &input)){}
 			best_column = input;
+			/*
+			generate_permutations(&game_tree->root, game_tree->root->value, 0, 1);
+			root -> value -> best_score = 999;
+			min_decision(&root);
+			best = root -> value -> best_score;
+			best_column = root -> value -> move;
+			printf("Best move for player %d: Score %d Column %d\n", player, best, best_column);
+			 */
 		}
 
 		// Verify that the move was valid and that the column could be added to
@@ -84,7 +97,7 @@ int play(board* b, int r, tree* game_tree)
 
 		// Delete the game board
 		delete_permutations(&game_tree, &b);
-		if (system("clear")){}
+		//if (system("clear")){}
 
 		// Check win condition
 		win = terminal_test(b);

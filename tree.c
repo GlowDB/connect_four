@@ -57,17 +57,19 @@ void delete_permutations(tree** game_tree, board** b)
 }
 
 /**
- * This function generates the n-th permutation of the current game state. It
- * takes the current game state, creates a new list_node struct, and appends that list_node
- * to the parent list_node.
+ * This function generates the nth permutation of the current game state. It
+ * enumerates each possible move for the parent board, appends those child
+ * boards to the parent board, and recursively calls itself until the recursion
+ * limit is reached.
  * @param parent: the list node to be appended to
  * @param b: the game state belonging to the parent node
  * @param nth_perm: the current permutation being generated
+ * @param player: the player for whom moves are to be enumerated
  */
 void generate_permutations(struct list_node** parent, board* b, int nth_perm, int player)
 {
 	// Check recursion depth
-	if (nth_perm == 3) { return; }
+	if (nth_perm == 1) { return; }
 	nth_perm += 1;
 
 	// Setup loop
@@ -109,20 +111,19 @@ void generate_permutations(struct list_node** parent, board* b, int nth_perm, in
  */
 void max_decision(struct list_node** parent)
 {
-	int alpha = 0;
-	int beta = 0;
-	struct list* children = (struct list*) (*parent) -> children;
-	struct list_node* current = (struct list_node*) children -> head;
+	int alpha = 0, beta = 0;
+	struct list* actions = (struct list*) (*parent) -> children;
+	struct list_node* action = (struct list_node*) actions -> head;
 
 	int best = -999;
-	while (current != NULL) {
-		min_value(&current, &alpha, &beta);
-		if (best < current -> value -> best_score) {
-			best = current -> value -> best_score;
-			(*parent) -> value -> best_score = current -> value -> best_score;
-			(*parent) -> value -> move = current -> value -> move;
+	while (action != NULL) {
+		min_value(&action, &alpha, &beta);
+		if (best < action -> value -> best_score) {
+			best = action -> value -> best_score;
+			(*parent) -> value -> best_score = best;
+			(*parent) -> value -> move = action -> value -> move;
 		}
-		current = (struct list_node*) current -> next;
+		action = (struct list_node*) action -> next;
 	}
 }
 
@@ -135,19 +136,19 @@ void max_decision(struct list_node** parent)
  */
 void min_decision(struct list_node** parent)
 {
-	int alpha = 0;
-	int beta = 0;
-	struct list* children = (struct list*) (*parent) -> children;
-	struct list_node* current = (struct list_node*) children -> head;
+	int alpha = 0, beta = 0;
+	struct list* actions = (struct list*) (*parent) -> children;
+	struct list_node* action = (struct list_node*) actions -> head;
 
 	int best = 999;
-	while (current != NULL) {
-		max_value(&current, &alpha, &beta);
-		if (best > current -> value -> best_score) {
-			best = current -> value -> best_score;
+	while (action != NULL) {
+		max_value(&action, &alpha, &beta);
+		if (best > action -> value -> best_score) {
+			best = action -> value -> best_score;
 			(*parent) -> value -> best_score = best;
+			(*parent) -> value -> move = action -> value -> move;
 		}
-		current = (struct list_node*) current -> next;
+		action = (struct list_node*) action -> next;
 	}
 }
 
@@ -156,8 +157,7 @@ void min_decision(struct list_node** parent)
  * it finds a terminal state or a nested child node with no children.
  * It attempts to find and return the maximum value of the children of the
  * parent node.
- * @param parent: memory address of the list node whose children are to be
- * searched
+ * @param parent: the list node whose children are to be searched
  */
 void min_value(struct list_node** parent, int* alpha, int* beta)
 {
@@ -173,8 +173,8 @@ void min_value(struct list_node** parent, int* alpha, int* beta)
 		while (action != NULL) {
 			max_value(&action, alpha, beta);
 			min(&best, &action, parent);
-			//if (best <= *alpha) { return; }
-			//*beta = (*beta < best) ? *beta: best;
+			if (best <= *alpha) { return; }
+			*beta = (*beta < best) ? *beta: best;
 			action = (struct list_node*) action -> next;
 		}
 	}
@@ -185,15 +185,14 @@ void min_value(struct list_node** parent, int* alpha, int* beta)
  * it finds a terminal state or a nested child node with no children.
  * It attempts to find and return the minimum value of the children of the
  * parent node.
- * @param parent: memory address of the list node whose children are to be
- * searched
+ * @param parent: the list node whose children are to be searched
  */
 void max_value(struct list_node** parent, int* alpha, int* beta)
 {
 	if (terminal_test((*parent) -> value) > 0) {
-		get_best_min(parent);
+		get_best_max(parent);
 	} else if (get_size((*parent) -> children) == 0) {
-		get_best_min(parent);
+		get_best_max(parent);
 	} else {
 		struct list* actions = (*parent) -> children;
 		struct list_node* action = (struct list_node*) actions -> head;
@@ -202,13 +201,21 @@ void max_value(struct list_node** parent, int* alpha, int* beta)
 		while (action != NULL) {
 			min_value(&action, alpha, beta);
 			max(&best, &action, parent);
-			//if (best >= *beta) { return; }
-			//*alpha = (*alpha > best) ? *alpha: best;
+			if (best >= *beta) { return; }
+			*alpha = (*alpha > best) ? *alpha: best;
 			action = (struct list_node*) action -> next;
 		}
 	}
 }
 
+/**
+ * This function determines the minimum value between best and action.
+ * If action's value is less than best, then best is assigned action's value
+ * and the parent node's best_score field is updated to the best value.
+ * @param best: the current minimum value
+ * @param action: the action to be compared against best
+ * @param parent: the parent of action
+ */
 void min(int* best, struct list_node** action, struct list_node** parent)
 {
 	if (*best > (*action) -> value -> best_score) {
@@ -217,6 +224,14 @@ void min(int* best, struct list_node** action, struct list_node** parent)
 	}
 }
 
+/**
+ * This function determines the maximum value between best and action.
+ * If action's value is greater than best, then best is assigned action's value
+ * and the parent node's best_score field is updated to the best value.
+ * @param best: the current minimum value
+ * @param action: the action to be compared against best
+ * @param parent: the parent of action
+ */
 void max(int* best, struct list_node** action, struct list_node** parent)
 {
 	if (*best < (*action) -> value -> best_score) {
@@ -309,14 +324,22 @@ void best_vertical_max(struct list_node** parent)
 				// fall through
 			} else {
 				temp = p1 + p2;
-				if (temp > best)
+				if (temp < best)
 					best = temp;
 
-				if (p1 == 3 && p2 == -1)
-					best = 4;
+				if (p2 == -3 && p1 == 0)
+					best = -4;
+				else if (p2 == -1 && p1 == 3)
+					best = -5;
+				else if (p2 == 0 && p1 == 2)
+					best = -3;
+				else if (p2 == -2 && p1 == 0)
+					best = -3;
 
 				if (best < (*parent) -> value -> best_score) {
 					(*parent) -> value -> best_score = best;
+					//printf("BEST VERTICAL MOVE %d SCORE %d\n", move, best);
+					//print_board(b);
 				}
 			}
 		}
@@ -374,6 +397,8 @@ void best_vertical_min(struct list_node** parent)
 			} else {
 				int p1 = 0, p2 = 0;
 				int temp = 0, invalid = 0;
+				//printf("VERTICAL MAX COLUMN %d\n", move);
+				//print_board(b);
 				for (j = 0; j < b -> r; j++) {
 
 					// Make sure index is within range
@@ -382,12 +407,14 @@ void best_vertical_min(struct list_node** parent)
 						break;
 					} else {
 						int current = b -> array[i + j * num_cols];
+						//printf("%d", current);
 						if (current == 1)
 							p1 += 1;
 						else if (current == 2)
 							p2 -= 1;
 					}
 				}
+				//printf("\n");
 				// If index was invalid, don't consider for best
 				if (invalid == 1) {
 					// fall through
@@ -396,15 +423,18 @@ void best_vertical_min(struct list_node** parent)
 					if (temp > best)
 						best = temp;
 
-					if (p1 == 3 && p2 == -1)
+					if (p1 == 3 && p2 == 0)
 						best = 4;
 					else if (p1 == 1 && p2 == -3)
-						best = 4;
+						best = 5;
 					else if (p1 == 2 && p2 == 0)
+						best = 3;
+					else if (p1 == 0 && p2 == -2)
 						best = 3;
 
 					if (best > (*parent) -> value -> best_score) {
 						(*parent) -> value -> best_score = best;
+						//printf("BEST VERTICAL MAX %d %d\n", best, move);
 					}
 				}
 			}
@@ -465,7 +495,6 @@ void best_horizontal_max(struct list_node** parent)
 		}
 		end -= 1;
 
-		//print_board(b);
 		int i, j;
 		for (i = start; i <= end; i++) {
 
@@ -490,14 +519,22 @@ void best_horizontal_max(struct list_node** parent)
 				}
 				if (invalid == 0) {
 					temp = p1 + p2;
-					if (temp > best)
+					if (temp < best)
 						best = temp;
 
-					if (p1 == 3 && p2 == -1)
-						best = 4;
+					if (p2 == -3 && p1 == 0)
+						best = -4;
+					else if (p2 == -1 && p1 == 3)
+						best = -5;
+					else if (p2 == -2 && p1 == 0)
+						best = -3;
+					else if (p2 == 0 && p1 == 2)
+						best = -3;
 
 					if (best < (*parent) -> value -> best_score) {
 						(*parent) -> value -> best_score = best;
+						//printf("BEST HORIZONTAL MOVE %d SCORE %d\n", move, best);
+						//print_board(b);
 					}
 				}
 			}
@@ -518,8 +555,6 @@ void best_horizontal_min(struct list_node** parent)
 	if (terminal_test(b) == 1) {
 		best = (*parent) -> value -> best_score = 10;
 	} else if (terminal_test(b) == 2) {
-		printf("Terminal ################3\n");
-		print_board(b);
 		best = (*parent) -> value -> best_score = -10;
 	} else {
 		int num_cols = b->column_len;
@@ -583,14 +618,16 @@ void best_horizontal_min(struct list_node** parent)
 				}
 				if (invalid == 0) {
 					temp = p1 + p2;
-					if (temp < best)
+					if (temp > best)
 						best = temp;
 
-					if (p1 == 3 && p2 == -1)
-						best = -4;
-					else if (p2 == -3 && p1 == 1)
+					if (p1 == 3 && p2 == 0)
 						best = 4;
+					else if (p1 == 1 && p2 == -3)
+						best = 5;
 					else if (p1 == 2 && p2 == 0)
+						best = 3;
+					else if (p1 == 0 && p2 == -2)
 						best = 3;
 
 					if (best > (*parent) -> value -> best_score) {
