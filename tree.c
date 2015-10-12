@@ -69,7 +69,7 @@ void delete_permutations(tree** game_tree, board** b)
 void generate_permutations(struct list_node** parent, board* b, int nth_perm, int player)
 {
 	// Check recursion depth
-	if (nth_perm == 1) { return; }
+	if (nth_perm == 6) { return; }
 	nth_perm += 1;
 
 	// Setup loop
@@ -111,7 +111,7 @@ void generate_permutations(struct list_node** parent, board* b, int nth_perm, in
  */
 void max_decision(struct list_node** parent)
 {
-	int alpha = 0, beta = 0;
+	int alpha = -999, beta = 999;
 	struct list* actions = (struct list*) (*parent) -> children;
 	struct list_node* action = (struct list_node*) actions -> head;
 
@@ -136,7 +136,7 @@ void max_decision(struct list_node** parent)
  */
 void min_decision(struct list_node** parent)
 {
-	int alpha = 0, beta = 0;
+	int alpha = -999, beta = 999;
 	struct list* actions = (struct list*) (*parent) -> children;
 	struct list_node* action = (struct list_node*) actions -> head;
 
@@ -174,7 +174,7 @@ void min_value(struct list_node** parent, int* alpha, int* beta)
 			max_value(&action, alpha, beta);
 			min(&best, &action, parent);
 			if (best <= *alpha) { return; }
-			*beta = (*beta < best) ? *beta: best;
+			*beta = (*beta < best) ? *beta : best;
 			action = (struct list_node*) action -> next;
 		}
 	}
@@ -202,7 +202,7 @@ void max_value(struct list_node** parent, int* alpha, int* beta)
 			min_value(&action, alpha, beta);
 			max(&best, &action, parent);
 			if (best >= *beta) { return; }
-			*alpha = (*alpha > best) ? *alpha: best;
+			*alpha = (*alpha > best) ? *alpha : best;
 			action = (struct list_node*) action -> next;
 		}
 	}
@@ -274,76 +274,80 @@ void best_vertical_max(struct list_node** parent)
 	board* b = (*parent) -> value;
 	int best = -1;
 
-	if (terminal_test(b) == 1) {
+	/*if (terminal_test(b) == 1) {
 		best = (*parent) -> value -> best_score = 10;
 	} else if (terminal_test(b) == 2) {
 		best = (*parent) -> value -> best_score = -10;
-	} else {
-		int num_cols = b->column_len;
-		int r = b->r;
+	} else {*/
+	int num_cols = b->column_len;
+	int r = b->r;
 
-		// Move that generated this board
-		int move = b -> move;
+	// Move that generated this board
+	int move = b -> move;
 
-		// End index, first non-zero index
-		int end = move;
-		while (end < b->size) {
-			if (b->array[end] != 0) {
+	// End index, first non-zero index
+	int end = move;
+	while (end < b->size) {
+		if (b->array[end] != 0) {
+			break;
+		} else {
+			end += num_cols;
+		}
+	}
+
+	// Start index
+	int start;
+	start = (end - r * num_cols > 0) ? end - (r-1) * num_cols : move;
+
+	// Iterate over r squares at a time, starting at at the top of the board,
+	// working down to the last non-zero square
+	int i, j;
+	for (i = start; i <= end; i+=num_cols) {
+		int p1 = 0, p2 = 0;
+		int temp = 0, invalid = 0;
+		for (j = 0; j < b -> r; j++) {
+
+			// Make sure index is within range
+			if (i + j * num_cols > b -> size) {
+				invalid = 1;
 				break;
 			} else {
-				end += num_cols;
+				int current = b -> array[i + j * num_cols];
+				if (current == 1)
+					p1 += 1;
+				else if (current == 2)
+					p2 -= 1;
 			}
 		}
+		// If index was invalid, don't consider for best
+		if (invalid == 1) {
+			// fall through
+		} else {
+			temp = p1 + p2;
+			if (temp < best)
+				best = temp;
 
-		// Start index
-		int start;
-		start = (end - r * num_cols > 0) ? end - (r-1) * num_cols : move;
+			if (p2 == 4)
+				best = -10;
+			else if (p1 == 4)
+				best = 10;
+			else if (p2 == -3 && p1 == 0)
+				best = -4;
+			else if (p2 == -1 && p1 == 3)
+				best = -5;
+			else if (p2 == 0 && p1 == 2)
+				best = -3;
+			else if (p2 == -2 && p1 == 0)
+				best = -3;
 
-		// Iterate over r squares at a time, starting at at the top of the board,
-		// working down to the last non-zero square
-		int i, j;
-		for (i = start; i <= end; i+=num_cols) {
-			int p1 = 0, p2 = 0;
-			int temp = 0, invalid = 0;
-			for (j = 0; j < b -> r; j++) {
-
-				// Make sure index is within range
-				if (i + j * num_cols > b -> size) {
-					invalid = 1;
-					break;
-				} else {
-					int current = b -> array[i + j * num_cols];
-					if (current == 1)
-						p1 += 1;
-					else if (current == 2)
-						p2 -= 1;
-				}
-			}
-			// If index was invalid, don't consider for best
-			if (invalid == 1) {
-				// fall through
-			} else {
-				temp = p1 + p2;
-				if (temp < best)
-					best = temp;
-
-				if (p2 == -3 && p1 == 0)
-					best = -4;
-				else if (p2 == -1 && p1 == 3)
-					best = -5;
-				else if (p2 == 0 && p1 == 2)
-					best = -3;
-				else if (p2 == -2 && p1 == 0)
-					best = -3;
-
-				if (best < (*parent) -> value -> best_score) {
-					(*parent) -> value -> best_score = best;
-					//printf("BEST VERTICAL MOVE %d SCORE %d\n", move, best);
-					//print_board(b);
-				}
+			if (best < (*parent) -> value -> best_score) {
+				(*parent) -> value -> best_score = best;
+				//printf("BEST VERTICAL MOVE %d SCORE %d\n", move, best);
+				//print_board(b);
 			}
 		}
 	}
+	//}
 }
 
 /**
@@ -356,90 +360,94 @@ void best_vertical_min(struct list_node** parent)
 	board* b = (*parent) -> value;
 	int best = -1;
 
-	if (terminal_test(b) == 1) {
+	/*if (terminal_test(b) == 1) {
 		best = (*parent) -> value -> best_score = 10;
 	} else if (terminal_test(b) == 2) {
 		best = (*parent) -> value -> best_score = -10;
-	} else {
-		int num_cols = b->column_len;
-		int r = b->r;
+	} else {*/
+	int num_cols = b->column_len;
+	int r = b->r;
 
-		// Move that generated this board
-		int move = b -> move;
+	// Move that generated this board
+	int move = b -> move;
 
-		// Find target index, first non-zero index
-		int target = move;
-		while (target < b->size) {
-			if (b->array[target] != 0) {
-				break;
-			} else {
-				target += num_cols;
+	// Find target index, first non-zero index
+	int target = move;
+	while (target < b->size) {
+		if (b->array[target] != 0) {
+			break;
+		} else {
+			target += num_cols;
+		}
+	}
+
+	// Start index
+	int start;
+	start = (target - r * num_cols > 0) ? target - (r-1) * num_cols : move;
+
+	// End index
+	int end = target, counter = 0;
+	while ((end + num_cols) < b -> size && counter < r) {
+		end += num_cols;
+		counter += 1;
+	}
+
+	// Iterate over r squares at a time, starting at at the top of the board,
+	// working down to the last non-zero square
+	int i, j;
+	for (i = start; i <= target; i+=num_cols) {
+		if (i + (r-1) * num_cols > end) {
+			// fall through
+		} else {
+			int p1 = 0, p2 = 0;
+			int temp = 0, invalid = 0;
+			//printf("VERTICAL MAX COLUMN %d\n", move);
+			//print_board(b);
+			for (j = 0; j < b -> r; j++) {
+
+				// Make sure index is within range
+				if (i + j * num_cols > b -> size) {
+					invalid = 1;
+					break;
+				} else {
+					int current = b -> array[i + j * num_cols];
+					//printf("%d", current);
+					if (current == 1)
+						p1 += 1;
+					else if (current == 2)
+						p2 -= 1;
+				}
 			}
-		}
-
-		// Start index
-		int start;
-		start = (target - r * num_cols > 0) ? target - (r-1) * num_cols : move;
-
-		// End index
-		int end = target, counter = 0;
-		while ((end + num_cols) < b -> size && counter < r) {
-			end += num_cols;
-			counter += 1;
-		}
-
-		// Iterate over r squares at a time, starting at at the top of the board,
-		// working down to the last non-zero square
-		int i, j;
-		for (i = start; i <= target; i+=num_cols) {
-			if (i + (r-1) * num_cols > end) {
+			//printf("\n");
+			// If index was invalid, don't consider for best
+			if (invalid == 1) {
 				// fall through
 			} else {
-				int p1 = 0, p2 = 0;
-				int temp = 0, invalid = 0;
-				//printf("VERTICAL MAX COLUMN %d\n", move);
-				//print_board(b);
-				for (j = 0; j < b -> r; j++) {
+				temp = p1 + p2;
+				if (temp > best)
+					best = temp;
 
-					// Make sure index is within range
-					if (i + j * num_cols > b -> size) {
-						invalid = 1;
-						break;
-					} else {
-						int current = b -> array[i + j * num_cols];
-						//printf("%d", current);
-						if (current == 1)
-							p1 += 1;
-						else if (current == 2)
-							p2 -= 1;
-					}
-				}
-				//printf("\n");
-				// If index was invalid, don't consider for best
-				if (invalid == 1) {
-					// fall through
-				} else {
-					temp = p1 + p2;
-					if (temp > best)
-						best = temp;
+				if (p1 == 4)
+					best = 4;
+				else if (p2 == 4)
+					best = -10;
+				else if (p1 == 3 && p2 == 0)
+					best = 4;
+				else if (p1 == 1 && p2 == -3)
+					best = 5;
+				else if (p1 == 2 && p2 == 0)
+					best = 3;
+				else if (p1 == 0 && p2 == -2)
+					best = 3;
 
-					if (p1 == 3 && p2 == 0)
-						best = 4;
-					else if (p1 == 1 && p2 == -3)
-						best = 5;
-					else if (p1 == 2 && p2 == 0)
-						best = 3;
-					else if (p1 == 0 && p2 == -2)
-						best = 3;
-
-					if (best > (*parent) -> value -> best_score) {
-						(*parent) -> value -> best_score = best;
-						//printf("BEST VERTICAL MAX %d %d\n", best, move);
-					}
+				if (best > (*parent) -> value -> best_score) {
+					(*parent) -> value -> best_score = best;
+					//printf("BEST VERTICAL MAX %d %d\n", best, move);
 				}
 			}
 		}
 	}
+	//}
 }
 
 /**
@@ -452,94 +460,102 @@ void best_horizontal_max(struct list_node** parent)
 	board* b = (*parent) -> value;
 	int best = -1;
 
-	if (terminal_test(b) == 1) {
+	/*if (terminal_test(b) == 1) {
 		best = (*parent) -> value -> best_score = 10;
 	} else if (terminal_test(b) == 2) {
 		best = (*parent) -> value -> best_score = -10;
-	} else {
-		int num_cols = b->column_len;
-		int r = b->r;
+	} else {*/
+	int num_cols = b->column_len;
+	int r = b->r;
 
-		// Move that generated this board
-		int move = b -> move;
+	// Move that generated this board
+	int move = b -> move;
 
-		// Find target index,
-		// first non-zero index in column where checker was placed
-		int target = move;
-		while (target < b->size) {
-			if (b->array[target] != 0) {
-				break;
-			} else {
-				target += num_cols;
-			}
+	// Find target index,
+	// first non-zero index in column where checker was placed
+	int target = move;
+	while (target < b->size) {
+		if (b->array[target] != 0) {
+			break;
+		} else {
+			target += num_cols;
 		}
+	}
 
-		// Row
-		int row = target / num_cols;
+	// Row
+	int row = target / num_cols;
 
-		// Start index
-		int start = target;
-		int counter = 0;
-		while ((start) / num_cols == row && counter < 4) {
-			start -= 1;
-			counter += 1;
-		}
-		start += 1;
+	// Start index
+	int start = target;
+	int counter = 0;
+	while ((start) / num_cols == row && counter < 4) {
+		start -= 1;
+		counter += 1;
+	}
+	start += 1;
 
-		// End index
-		int end = target;
-		counter = 0;
-		while ((end) / num_cols == row && counter < 4) {
-			end += 1;
-			counter += 1;
-		}
-		end -= 1;
+	// End index
+	int end = target;
+	counter = 0;
+	while ((end) / num_cols == row && counter < 4) {
+		end += 1;
+		counter += 1;
+	}
+	end -= 1;
 
-		int i, j;
-		for (i = start; i <= end; i++) {
+	int i, j;
+	//printf("BEST HORIZONTAL MIN COLUMN %d\n", move);
+	//print_board(b);
+	for (i = start; i <= end; i++) {
 
-			// Ensure valid index
-			if (i + (r-1) > end) {
-				// fall through
-			} else {
-				int p1 = 0, p2 = 0;
-				int temp, invalid = 0;
-				for (j = 0; j < r; j++) {
-					// Make sure row below has checker
-					if (i + j + 7 < b->size && b->array[i+j+7] == 0) {
-						invalid = 1;
-						break;
-					} else {
-						int current = b -> array[i + j];
-						if (current == 1)
-							p1 += 1;
-						else if (current == 2)
-							p2 -= 1;
-					}
+		// Ensure valid index
+		if (i + (r-1) > end) {
+			// fall through
+		} else {
+			int p1 = 0, p2 = 0;
+			int temp, invalid = 0;
+			for (j = 0; j < r; j++) {
+				// Make sure row below has checker
+				if (i + j + 7 < b->size && b->array[i+j+7] == 0) {
+					invalid = 1;
+					break;
+				} else {
+					int current = b -> array[i + j];
+					//printf("%d", current);
+					if (current == 1)
+						p1 += 1;
+					else if (current == 2)
+						p2 -= 1;
 				}
-				if (invalid == 0) {
-					temp = p1 + p2;
-					if (temp < best)
-						best = temp;
+			}
+			//printf("\n");
+			if (invalid == 0) {
+				temp = p1 + p2;
+				if (temp < best)
+					best = temp;
 
-					if (p2 == -3 && p1 == 0)
-						best = -4;
-					else if (p2 == -1 && p1 == 3)
-						best = -5;
-					else if (p2 == -2 && p1 == 0)
-						best = -3;
-					else if (p2 == 0 && p1 == 2)
-						best = -3;
+				if (p2 == 4)
+					best = -10;
+				else if (p1 == 4)
+					best = 10;
+				else if (p2 == -3 && p1 == 0)
+					best = -4;
+				else if (p2 == -1 && p1 == 3)
+					best = -5;
+				else if (p2 == -2 && p1 == 0)
+					best = -3;
+				else if (p2 == 0 && p1 == 2)
+					best = -3;
 
-					if (best < (*parent) -> value -> best_score) {
-						(*parent) -> value -> best_score = best;
-						//printf("BEST HORIZONTAL MOVE %d SCORE %d\n", move, best);
-						//print_board(b);
-					}
+				if (best < (*parent) -> value -> best_score) {
+					(*parent) -> value -> best_score = best;
+					//printf("MIN HORIZONTAL MOVE %d SCORE %d\n", move, best);
+					//print_board(b);
 				}
 			}
 		}
 	}
+	//}
 }
 
 /**
@@ -552,89 +568,98 @@ void best_horizontal_min(struct list_node** parent)
 	board* b = (*parent) -> value;
 	int best = -1;
 
-	if (terminal_test(b) == 1) {
+	/*if (terminal_test(b) == 1) {
 		best = (*parent) -> value -> best_score = 10;
 	} else if (terminal_test(b) == 2) {
 		best = (*parent) -> value -> best_score = -10;
-	} else {
-		int num_cols = b->column_len;
-		int r = b->r;
+	} else {*/
+	int num_cols = b->column_len;
+	int r = b->r;
 
-		// Move that generated this board
-		int move = b -> move;
+	// Move that generated this board
+	int move = b -> move;
 
-		// Find target index, first non-zero index in column where checker was placed
-		int target = move;
-		while (target < b->size) {
-			if (b->array[target] != 0) {
-				break;
-			} else {
-				target += num_cols;
-			}
+	// Find target index, first non-zero index in column where checker was placed
+	int target = move;
+	while (target < b->size) {
+		if (b->array[target] != 0) {
+			break;
+		} else {
+			target += num_cols;
 		}
+	}
 
-		// Row
-		int row = target / num_cols;
+	// Row
+	int row = target / num_cols;
 
-		// Start index
-		int start = target;
-		int counter = 0;
-		while ((start) / num_cols == row && counter < 4) {
-			start -= 1;
-			counter += 1;
-		}
-		start += 1;
+	// Start index
+	int start = target;
+	int counter = 0;
+	while ((start) / num_cols == row && counter < 4) {
+		start -= 1;
+		counter += 1;
+	}
+	start += 1;
 
-		// End index
-		int end = target;
-		counter = 0;
-		while ((end) / num_cols == row && counter < 4) {
-			end += 1;
-			counter += 1;
-		}
-		end -= 1;
+	// End index
+	int end = target;
+	counter = 0;
+	while ((end) / num_cols == row && counter < 4) {
+		end += 1;
+		counter += 1;
+	}
+	end -= 1;
 
-		int i, j;
-		for (i = start; i <= end; i++) {
+	int i, j;
+	//printf("BEST HORIZONTAL MAX COLUMN %d\n", move);
+	//print_board(b);
+	for (i = start; i <= end; i++) {
 
-			// Ensure valid index
-			if (i + (r-1) > end) {
-				// fall through
-			} else {
-				int p1 = 0, p2 = 0;
-				int temp, invalid = 0;
-				for (j = 0; j < r; j++) {
-					// Make sure row below has checker
-					if (i + j + 7 < b->size && b->array[i+j+7] == 0) {
-						invalid = 1;
-						break;
-					} else {
-						int current = b -> array[i + j];
-						if (current == 1)
-							p1 += 1;
-						else if (current == 2)
-							p2 -= 1;
-					}
+		// Ensure valid index
+		if (i + (r-1) > end) {
+			// fall through
+		} else {
+			int p1 = 0, p2 = 0;
+			int temp, invalid = 0;
+			for (j = 0; j < r; j++) {
+				// Make sure row below has checker
+				if (i + j + 7 < b->size && b->array[i+j+7] == 0) {
+					invalid = 1;
+					break;
+				} else {
+					int current = b -> array[i + j];
+					//printf("%d", current);
+					if (current == 1)
+						p1 += 1;
+					else if (current == 2)
+						p2 -= 1;
 				}
-				if (invalid == 0) {
-					temp = p1 + p2;
-					if (temp > best)
-						best = temp;
+			}
+			//printf("\n");
+			if (invalid == 0) {
+				temp = p1 + p2;
+				if (temp > best)
+					best = temp;
 
-					if (p1 == 3 && p2 == 0)
-						best = 4;
-					else if (p1 == 1 && p2 == -3)
-						best = 5;
-					else if (p1 == 2 && p2 == 0)
-						best = 3;
-					else if (p1 == 0 && p2 == -2)
-						best = 3;
+				if (p1 == 4)
+					best = 10;
+				else if (p2 == 4)
+					best = -10;
+				else if (p1 == 3 && p2 == 0)
+					best = 4;
+				else if (p1 == 1 && p2 == -3)
+					best = 5;
+				else if (p1 == 2 && p2 == 0)
+					best = 3;
+				else if (p1 == 0 && p2 == -2)
+					best = 3;
 
-					if (best > (*parent) -> value -> best_score) {
-						(*parent) -> value -> best_score = best;
-					}
+				if (best > (*parent) -> value -> best_score) {
+					(*parent) -> value -> best_score = best;
+					//printf("BEST SCORE MAX SCORE %d MOVE %d\n", best, move);
 				}
 			}
 		}
 	}
+	//}
 }

@@ -215,6 +215,16 @@ int terminal_test(board *b)
 	} else if ((win = check_backwards_diag(b)) > 0) {
 		return win;
 	}
+
+	board* temp = copy_board(b);
+	int i, counter = 0;
+	for (i = 0; i < temp -> column_len; i++) {
+		counter += add_checker(temp, i, 1);
+	}
+	if (counter == temp -> column_len) {
+		delete_board(temp);
+		return -1;
+	}
 	return win;
 }
 

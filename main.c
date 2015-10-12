@@ -29,7 +29,10 @@ int main(int argc, char* argv[])
 
 	/* End game */
 	if (system("clear") > 0){}
-	printf("Winner: %d\n", win);
+	if (win > 0)
+		printf("Winner: %d\n", win);
+	else
+		printf("Cat's game\n");
 	print_board(game_tree->root->value);
 
 	/* Cleanup */
@@ -74,23 +77,27 @@ int play(board* b, int r, tree* game_tree)
 			printf("Best move for player %d: Score %d Column %d\n", player, best, best_column);
 
 		} else {
-			printf("Input move: ");
+			/*printf("Input move: ");
 			if (scanf("%d", &input)){}
 			best_column = input;
-			/*
+			*/
 			generate_permutations(&game_tree->root, game_tree->root->value, 0, 1);
 			root -> value -> best_score = 999;
 			min_decision(&root);
 			best = root -> value -> best_score;
 			best_column = root -> value -> move;
 			printf("Best move for player %d: Score %d Column %d\n", player, best, best_column);
-			 */
+
 		}
 
 		// Verify that the move was valid and that the column could be added to
 		if (add_checker(root->value, best_column, player) == 1) {
-			printf("Invalid move for player %d. Retry last turn\n", player);
-			continue;
+			if (terminal_test(b) != -1) {
+				printf("Invalid move for player %d. Retry last turn\n", player);
+				continue;
+			} else {
+				win = terminal_test(b);
+			}
 		} else {
 			swap(&player);
 		}
